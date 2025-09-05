@@ -233,9 +233,31 @@
       </div>
     </div>
 
-    <!-- Report Generator -->
-    <div v-if="showReportGenerator">
-      <ReportGenerator />
+    <!-- Report Generator Modal -->
+    <div
+        v-if="showReportGenerator"
+        class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click="handleReportBackdropClick"
+    >
+      <div class="relative top-4 mx-auto p-0 border w-full max-w-4xl bg-white rounded-lg shadow-lg mb-8">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Generate Financial Report</h3>
+          <button
+              @click="showReportGenerator = false"
+              class="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+          >
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+          <ReportGenerator />
+        </div>
+      </div>
     </div>
 
     <!-- Transaction Modal -->
@@ -295,6 +317,12 @@ function openTransactionModal(transaction = null) {
 function closeTransactionModal() {
   showTransactionModal.value = false
   editingTransaction.value = null
+}
+
+function handleReportBackdropClick(event) {
+  if (event.target === event.currentTarget) {
+    showReportGenerator.value = false
+  }
 }
 
 function handleTransactionSuccess() {

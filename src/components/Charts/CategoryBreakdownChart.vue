@@ -205,6 +205,11 @@ const formatCurrency = (amount) => {
 const createChart = () => {
   if (!chartCanvas.value || !hasData.value) return
 
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
+
   const ctx = chartCanvas.value.getContext('2d')
 
   chartInstance = new Chart(ctx, {
@@ -259,7 +264,7 @@ const updateChart = async () => {
     if (hasData.value) {
       createChart()
     }
-  }, 50)
+  }, 100)
 }
 
 const destroyChart = () => {

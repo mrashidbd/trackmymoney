@@ -25,3 +25,14 @@
     @apply bg-white border border-gray-200 rounded-lg shadow-sm p-6;
   }
 }
+
+
+/*!* Fix main container height *!*/
+/*main {*/
+/*    min-height: auto !important;*/
+/*    height: auto !important;*/
+/*}*/
+
+/*.space-y-6 > *:last-child {*/
+/*    margin-bottom: 0 !important;*/
+/*}*/
