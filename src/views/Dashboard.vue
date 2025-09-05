@@ -93,13 +93,8 @@
 
     <!-- Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Chart Section -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Monthly Overview</h3>
-        <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-          <p class="text-gray-500">Chart will be displayed here</p>
-        </div>
-      </div>
+      <!-- Monthly Trends Chart -->
+      <MonthlyTrendsChart />
 
       <!-- Recent Transactions -->
       <div class="card">
@@ -184,6 +179,9 @@
       </div>
     </div>
 
+    <!-- Category Breakdown -->
+    <CategoryBreakdownChart />
+
     <!-- Quick Actions -->
     <div class="card">
       <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
@@ -251,6 +249,8 @@ import { format } from 'date-fns'
 import { useTransactionsStore } from '@/stores/transactions'
 import { useCategoriesStore } from '@/stores/categories'
 import TransactionModal from '@/components/Transaction/TransactionModal.vue'
+import MonthlyTrendsChart from '@/components/Charts/MonthlyTrendsChart.vue'
+import CategoryBreakdownChart from '@/components/Charts/CategoryBreakdownChart.vue'
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()

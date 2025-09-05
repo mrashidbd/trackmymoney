@@ -50,13 +50,23 @@
           ]"
             @click="$emit('close')"
         >
-          <component
-              :is="item.icon"
+          <!-- Fixed: Use the actual icon component instead of dynamic component -->
+          <svg
               :class="[
               'mr-3 h-5 w-5 flex-shrink-0',
               $route.name === item.name ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
             ]"
-          />
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+          >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                :d="item.iconPath"
+            />
+          </svg>
           {{ item.label }}
         </router-link>
       </div>
@@ -84,53 +94,25 @@ defineProps({
 
 defineEmits(['close'])
 
-// Navigation items
+// Navigation items with SVG path data instead of components
 const navigation = [
   {
     name: 'Dashboard',
     label: 'Dashboard',
     to: '/',
-    icon: 'DashboardIcon'
+    iconPath: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 5v4 M12 5v4 M16 5v4'
   },
   {
     name: 'Transactions',
     label: 'Transactions',
     to: '/transactions',
-    icon: 'TransactionIcon'
+    iconPath: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z'
   },
   {
     name: 'Categories',
     label: 'Categories',
     to: '/categories',
-    icon: 'CategoryIcon'
+    iconPath: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
   }
 ]
-
-// Icon components (inline SVGs)
-const DashboardIcon = {
-  template: `
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v4" />
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v4" />
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 5v4" />
-    </svg>
-  `
-}
-
-const TransactionIcon = {
-  template: `
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-    </svg>
-  `
-}
-
-const CategoryIcon = {
-  template: `
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-    </svg>
-  `
-}
 </script>

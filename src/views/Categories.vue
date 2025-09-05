@@ -191,13 +191,16 @@
       </div>
     </div>
 
-    <!-- Category Modal -->
+    <!-- Category Modal - FIXED -->
     <div
         v-if="showCategoryModal"
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-        @click="closeCategoryModal"
+        @click="handleBackdropClick"
     >
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-md bg-white rounded-lg shadow-lg">
+      <div
+          class="relative top-20 mx-auto p-5 border w-full max-w-md bg-white rounded-lg shadow-lg"
+          @click.stop
+      >
         <!-- Modal Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">
@@ -313,9 +316,12 @@
     <div
         v-if="showDeleteModal"
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-        @click="showDeleteModal = false"
+        @click="handleDeleteBackdropClick"
     >
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <div
+          class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+          @click.stop
+      >
         <div class="mt-3 text-center">
           <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
             <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -435,7 +441,7 @@ function validateForm() {
   return isValid
 }
 
-// Modal functions
+// Modal functions - FIXED
 function openCategoryModal(type = null, category = null) {
   clearForm()
   editingCategory.value = category
@@ -454,6 +460,21 @@ function closeCategoryModal() {
   showCategoryModal.value = false
   editingCategory.value = null
   clearForm()
+}
+
+// Fixed backdrop click handlers
+function handleBackdropClick(event) {
+  // Only close if clicked on the backdrop itself, not on modal content
+  if (event.target === event.currentTarget) {
+    closeCategoryModal()
+  }
+}
+
+function handleDeleteBackdropClick(event) {
+  // Only close if clicked on the backdrop itself, not on modal content
+  if (event.target === event.currentTarget) {
+    showDeleteModal.value = false
+  }
 }
 
 // CRUD functions
