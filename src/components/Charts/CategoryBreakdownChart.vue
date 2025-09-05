@@ -255,9 +255,11 @@ const createChart = () => {
 const updateChart = async () => {
   destroyChart()
   await nextTick()
-  if (hasData.value) {
-    createChart()
-  }
+  setTimeout(() => {
+    if (hasData.value) {
+      createChart()
+    }
+  }, 50)
 }
 
 const destroyChart = () => {

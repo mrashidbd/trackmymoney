@@ -234,7 +234,9 @@
     </div>
 
     <!-- Report Generator -->
-    <ReportGenerator v-if="showReportGenerator" />
+    <div v-if="showReportGenerator">
+      <ReportGenerator />
+    </div>
 
     <!-- Transaction Modal -->
     <TransactionModal
