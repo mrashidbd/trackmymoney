@@ -210,7 +210,7 @@
           <span class="text-sm font-medium text-gray-900">Manage Categories</span>
         </router-link>
 
-        <button class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+        <button @click="showReportGenerator = !showReportGenerator" class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
           <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
             <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -233,6 +233,9 @@
       </div>
     </div>
 
+    <!-- Report Generator -->
+    <ReportGenerator v-if="showReportGenerator" />
+
     <!-- Transaction Modal -->
     <TransactionModal
         :is-open="showTransactionModal"
@@ -251,11 +254,13 @@ import { useCategoriesStore } from '@/stores/categories'
 import TransactionModal from '@/components/Transaction/TransactionModal.vue'
 import MonthlyTrendsChart from '@/components/Charts/MonthlyTrendsChart.vue'
 import CategoryBreakdownChart from '@/components/Charts/CategoryBreakdownChart.vue'
+import ReportGenerator from '@/components/Reports/ReportGenerator.vue'
 
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
 
 const showTransactionModal = ref(false)
+const showReportGenerator = ref(false)
 const editingTransaction = ref(null)
 
 // Computed properties
