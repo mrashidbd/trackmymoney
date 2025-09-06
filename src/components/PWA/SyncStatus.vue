@@ -75,6 +75,7 @@ const checkUnsyncedItems = async () => {
     unsyncedCount.value = stats.unsyncedItems
   } catch (error) {
     console.error('Error checking unsynced items:', error)
+    unsyncedCount.value = 0 // Fallback to 0 instead of breaking
   }
 }
 

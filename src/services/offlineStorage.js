@@ -7,16 +7,12 @@ class OfflineStorageService {
     }
 
     initDatabase() {
+        // Single clean version without compound indexes
         this.db.version(1).stores({
             users: 'id, username, name, token, lastSync',
             categories: 'id, name, type, isDefault, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt',
             transactions: 'id, amount, date, type, categoryId, description, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt',
             syncQueue: '++id, type, action, data, timestamp, retryCount'
-        })
-
-        this.db.version(2).stores({
-            categories: 'id, name, type, isDefault, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt, [userId+year+deleted], [userId+year+needsSync]',
-            transactions: 'id, amount, date, type, categoryId, description, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt, [userId+year+deleted], [userId+year+needsSync]'
         })
     }
 
@@ -49,10 +45,17 @@ class OfflineStorageService {
 
     // Categories methods
     async getCategories(userId, year) {
-        return await this.db.categories
-            .where('userId').equals(userId)
-            .and(cat => cat.year === year && cat.deleted === false)
-            .toArray()
+        try {
+            const allCategories = await this.db.categories.toArray()
+            return allCategories.filter(cat =>
+                cat.userId === userId &&
+                cat.year === year &&
+                cat.deleted === false
+            )
+        } catch (error) {
+            console.error('Error getting categories:', error)
+            return []
+        }
     }
 
     async saveCategory(category, userId, year) {
@@ -111,10 +114,17 @@ class OfflineStorageService {
 
     // Transactions methods
     async getTransactions(userId, year) {
-        return await this.db.transactions
-            .where('userId').equals(userId)
-            .and(trans => trans.year === year && trans.deleted === false)
-            .toArray()
+        try {
+            const allTransactions = await this.db.transactions.toArray()
+            return allTransactions.filter(trans =>
+                trans.userId === userId &&
+                trans.year === year &&
+                trans.deleted === false
+            )
+        } catch (error) {
+            console.error('Error getting transactions:', error)
+            return []
+        }
     }
 
     async saveTransaction(transaction, userId) {
@@ -198,18 +208,34 @@ class OfflineStorageService {
     }
 
     // Get items that need sync
+// Replace getUnsyncedCategories method
     async getUnsyncedCategories(userId, year) {
-        return await this.db.categories
-            .where('userId').equals(userId)
-            .and(cat => cat.year === year && cat.needsSync === true)
-            .toArray()
+        try {
+            const allCategories = await this.db.categories.toArray()
+            return allCategories.filter(cat =>
+                cat.userId === userId &&
+                cat.year === year &&
+                cat.needsSync === true
+            )
+        } catch (error) {
+            console.error('Error getting unsynced categories:', error)
+            return []
+        }
     }
 
+// Replace getUnsyncedTransactions method
     async getUnsyncedTransactions(userId, year) {
-        return await this.db.transactions
-            .where('userId').equals(userId)
-            .and(trans => trans.year === year && trans.needsSync === true)
-            .toArray()
+        try {
+            const allTransactions = await this.db.transactions.toArray()
+            return allTransactions.filter(trans =>
+                trans.userId === userId &&
+                trans.year === year &&
+                trans.needsSync === true
+            )
+        } catch (error) {
+            console.error('Error getting unsynced transactions:', error)
+            return []
+        }
     }
 
     // Mark items as synced
@@ -247,29 +273,53 @@ class OfflineStorageService {
         await this.db.users.clear()
     }
 
-    // Get database statistics
-// Get database statistics
+    // Get database statistics - completely safe version
     async getStats() {
         try {
-            const categoriesCount = await this.db.categories.count()
-            const transactionsCount = await this.db.transactions.count()
+            // Use toArray() instead of count() to avoid index issues
+            const allCategories = await this.db.categories.toArray()
+            const allTransactions = await this.db.transactions.toArray()
 
-            // Use simpler query to avoid compound index issues
-            const unsyncedCategories = await this.db.categories.where('needsSync').equals(true).count()
-            const unsyncedTransactions = await this.db.transactions.where('needsSync').equals(true).count()
+            // Count unsynced items manually
+            const unsyncedCategories = allCategories.filter(cat => cat.needsSync === true).length
+            const unsyncedTransactions = allTransactions.filter(trans => trans.needsSync === true).length
 
             return {
-                categoriesCount,
-                transactionsCount,
+                categoriesCount: allCategories.length,
+                transactionsCount: allTransactions.length,
                 unsyncedItems: unsyncedCategories + unsyncedTransactions
             }
         } catch (error) {
             console.error('Error getting stats:', error)
+            // Return empty stats if any error occurs
             return {
                 categoriesCount: 0,
                 transactionsCount: 0,
                 unsyncedItems: 0
             }
+        }
+    }
+
+    // Development helper - clear and reinitialize database
+    async resetDatabase() {
+        try {
+            // Close current database
+            if (this.db.isOpen()) {
+                this.db.close()
+            }
+
+            // Delete the entire database
+            await Dexie.delete('TrackMyMoneyDB')
+
+            // Recreate with clean schema
+            this.db = new Dexie('TrackMyMoneyDB')
+            this.initDatabase()
+
+            console.log('Database reset successfully')
+            return true
+        } catch (error) {
+            console.error('Error resetting database:', error)
+            return false
         }
     }
 }
