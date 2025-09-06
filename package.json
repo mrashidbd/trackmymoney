@@ -1,7 +1,7 @@
 {
   "name": "trackmymoney",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,8 @@
     "vue": "^3.3.8",
     "vue-chartjs": "^5.2.0",
     "vue-router": "^4.2.5",
+    "axios": "^1.6.2",
+    "dexie": "^3.2.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

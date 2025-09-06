@@ -549,8 +549,9 @@ async function handleSubmit() {
 }
 
 // Initialize stores
-onMounted(() => {
-  categoriesStore.initCategories()
-  transactionsStore.initTransactions()
+onMounted(async () => {
+  await categoriesStore.initCategories()
+  await transactionsStore.initTransactions()
 })
+
 </script>

@@ -1,29 +1,14 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import apiService from '@/services/api'
+import offlineStorage from '@/services/offlineStorage'
+import syncService from '@/services/syncService'
 
 export const useCategoriesStore = defineStore('categories', () => {
     const categories = ref([])
-
-    // Default categories as per requirements
-    const defaultCategories = [
-        // Income Categories
-        { id: 1, name: 'Monthly Fund', type: 'income', isDefault: true },
-        { id: 2, name: 'Special Fund', type: 'income', isDefault: true },
-        { id: 3, name: 'Donation', type: 'income', isDefault: true },
-        { id: 4, name: 'Personal Money', type: 'income', isDefault: true },
-        { id: 5, name: 'Bank Loan', type: 'income', isDefault: true },
-        { id: 6, name: 'Borrowed Money', type: 'income', isDefault: true },
-        { id: 7, name: 'Others', type: 'income', isDefault: true },
-
-        // Expense Categories
-        { id: 8, name: 'Employee Salary', type: 'expense', isDefault: true },
-        { id: 9, name: 'Foods & Treats', type: 'expense', isDefault: true },
-        { id: 10, name: 'Conveyances', type: 'expense', isDefault: true },
-        { id: 11, name: 'Purchase', type: 'expense', isDefault: true },
-        { id: 12, name: 'Rents', type: 'expense', isDefault: true },
-        { id: 13, name: 'Utility Bills', type: 'expense', isDefault: true },
-        { id: 14, name: 'Others', type: 'expense', isDefault: true }
-    ]
+    const isLoading = ref(false)
+    const currentYear = ref(new Date().getFullYear())
+    const isOnline = ref(navigator.onLine)
 
     // Computed properties
     const incomeCategories = computed(() =>
@@ -34,74 +19,210 @@ export const useCategoriesStore = defineStore('categories', () => {
         categories.value.filter(cat => cat.type === 'expense')
     )
 
-    // Initialize categories from localStorage or use defaults
-    function initCategories() {
-        const savedCategories = localStorage.getItem('trackmymoney_categories')
-        if (savedCategories) {
-            categories.value = JSON.parse(savedCategories)
-        } else {
-            categories.value = [...defaultCategories]
-            saveCategories()
-        }
+    // Set current year
+    function setCurrentYear(year) {
+        currentYear.value = year
     }
 
-    // Save categories to localStorage
-    function saveCategories() {
-        localStorage.setItem('trackmymoney_categories', JSON.stringify(categories.value))
+    // Get current user
+    function getCurrentUser() {
+        const userData = localStorage.getItem('trackmymoney_user')
+        return userData ? JSON.parse(userData) : null
     }
 
-    // Add new category
-    function addCategory(categoryData) {
-        const newCategory = {
-            id: Date.now(), // Simple ID generation
-            name: categoryData.name,
-            type: categoryData.type,
-            isDefault: false,
-            createdAt: new Date().toISOString()
-        }
+    // Initialize categories - hybrid approach
+    async function initCategories(year = null) {
+        isLoading.value = true
+        const user = getCurrentUser()
+        const targetYear = year || currentYear.value
 
-        categories.value.push(newCategory)
-        saveCategories()
-        return newCategory
-    }
-
-    // Update category
-    function updateCategory(id, updateData) {
-        const index = categories.value.findIndex(cat => cat.id === id)
-        if (index !== -1) {
-            categories.value[index] = {
-                ...categories.value[index],
-                ...updateData,
-                updatedAt: new Date().toISOString()
+        try {
+            if (!user?.user?.id) {
+                console.error('No user found')
+                return
             }
-            saveCategories()
-            return categories.value[index]
+
+            // Always load from offline storage first (instant)
+            const offlineCategories = await offlineStorage.getCategories(user.user.id, targetYear)
+            categories.value = offlineCategories
+
+            // If online, try to sync with server
+            if (isOnline.value) {
+                try {
+                    await syncService.fullSync(user.user.id, targetYear)
+                    // Reload from offline storage after sync
+                    const syncedCategories = await offlineStorage.getCategories(user.user.id, targetYear)
+                    categories.value = syncedCategories
+                } catch (error) {
+                    console.error('Sync failed, using offline data:', error)
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing categories:', error)
+        } finally {
+            isLoading.value = false
         }
-        return null
     }
 
-    // Delete category
-    function deleteCategory(id) {
-        const category = categories.value.find(cat => cat.id === id)
-
-        // Prevent deletion of default categories
-        if (category && category.isDefault) {
-            return { success: false, message: 'Cannot delete default categories' }
+    // Add new category - hybrid approach
+    async function addCategory(categoryData) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
         }
 
-        const index = categories.value.findIndex(cat => cat.id === id)
-        if (index !== -1) {
-            categories.value.splice(index, 1)
-            saveCategories()
-            return { success: true, message: 'Category deleted successfully' }
+        try {
+            // Save offline first
+            const savedCategory = await offlineStorage.saveCategory(
+                {
+                    ...categoryData,
+                    needsSync: true
+                },
+                user.user.id,
+                currentYear.value
+            )
+
+            // Add to local state immediately
+            categories.value.push(savedCategory)
+
+            // If online, try to sync immediately
+            if (isOnline.value) {
+                try {
+                    const response = await apiService.createCategory(categoryData, currentYear.value)
+                    if (response.success) {
+                        // Update local storage with server data
+                        await offlineStorage.markCategorySynced(
+                            savedCategory.localId,
+                            response.data.id,
+                            response.data
+                        )
+
+                        // Update local state
+                        const index = categories.value.findIndex(cat =>
+                            cat.localId === savedCategory.localId
+                        )
+                        if (index !== -1) {
+                            categories.value[index] = { ...response.data, needsSync: false }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to sync category creation:', error)
+                    // Category is saved offline, will sync later
+                }
+            }
+
+            return savedCategory
+        } catch (error) {
+            console.error('Error creating category:', error)
+            throw error
+        }
+    }
+
+    // Update category - hybrid approach
+    async function updateCategory(id, updateData) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
         }
 
-        return { success: false, message: 'Category not found' }
+        try {
+            // Update offline first
+            const updatedCategory = await offlineStorage.updateCategory(
+                id,
+                updateData,
+                user.user.id,
+                currentYear.value
+            )
+
+            if (updatedCategory) {
+                // Update local state
+                const index = categories.value.findIndex(cat =>
+                    cat.id === id || cat.localId === id
+                )
+                if (index !== -1) {
+                    categories.value[index] = updatedCategory
+                }
+
+                // If online, try to sync immediately
+                if (isOnline.value && updatedCategory.id) {
+                    try {
+                        const response = await apiService.updateCategory(
+                            updatedCategory.id,
+                            updateData,
+                            currentYear.value
+                        )
+                        if (response.success) {
+                            // Update offline storage
+                            await offlineStorage.db.categories.put({
+                                ...updatedCategory,
+                                ...response.data,
+                                needsSync: false,
+                                serverUpdatedAt: response.data.updatedAt
+                            })
+
+                            // Update local state
+                            categories.value[index] = { ...response.data, needsSync: false }
+                        }
+                    } catch (error) {
+                        console.error('Failed to sync category update:', error)
+                        // Update is saved offline, will sync later
+                    }
+                }
+
+                return updatedCategory
+            }
+            return null
+        } catch (error) {
+            console.error('Error updating category:', error)
+            throw error
+        }
+    }
+
+    // Delete category - hybrid approach
+    async function deleteCategory(id) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
+        }
+
+        try {
+            // Delete offline first
+            const success = await offlineStorage.deleteCategory(id, user.user.id, currentYear.value)
+
+            if (success) {
+                // Remove from local state
+                const index = categories.value.findIndex(cat =>
+                    cat.id === id || cat.localId === id
+                )
+                if (index !== -1) {
+                    categories.value.splice(index, 1)
+                }
+
+                // If online, try to sync immediately
+                if (isOnline.value) {
+                    try {
+                        const category = await offlineStorage.db.categories.get(id)
+                        if (category?.id && !category.localId) {
+                            await apiService.deleteCategory(category.id, currentYear.value)
+                        }
+                    } catch (error) {
+                        console.error('Failed to sync category deletion:', error)
+                        // Deletion is saved offline, will sync later
+                    }
+                }
+
+                return { success: true, message: 'Category deleted successfully' }
+            }
+            return { success: false, message: 'Category not found' }
+        } catch (error) {
+            console.error('Error deleting category:', error)
+            return { success: false, message: error.message || 'Failed to delete category' }
+        }
     }
 
     // Get category by ID
     function getCategoryById(id) {
-        return categories.value.find(cat => cat.id === id)
+        return categories.value.find(cat => cat.id === id || cat.localId === id)
     }
 
     // Get categories by type
@@ -109,15 +230,52 @@ export const useCategoriesStore = defineStore('categories', () => {
         return categories.value.filter(cat => cat.type === type)
     }
 
+    // Force sync
+    async function forceSync() {
+        const user = getCurrentUser()
+        if (!user?.user?.id || !isOnline.value) {
+            return { success: false, message: 'Cannot sync while offline' }
+        }
+
+        try {
+            await syncService.fullSync(user.user.id, currentYear.value)
+            // Reload categories after sync
+            await initCategories()
+            return { success: true, message: 'Sync completed successfully' }
+        } catch (error) {
+            console.error('Force sync failed:', error)
+            return { success: false, message: error.message }
+        }
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+        isOnline.value = true
+        // Auto-sync when coming online
+        const user = getCurrentUser()
+        if (user?.user?.id) {
+            syncService.backgroundSync(user.user.id, currentYear.value)
+        }
+    })
+
+    window.addEventListener('offline', () => {
+        isOnline.value = false
+    })
+
     return {
         categories,
         incomeCategories,
         expenseCategories,
+        isLoading,
+        currentYear,
+        isOnline,
+        setCurrentYear,
         initCategories,
         addCategory,
         updateCategory,
         deleteCategory,
         getCategoryById,
-        getCategoriesByType
+        getCategoriesByType,
+        forceSync
     }
 })

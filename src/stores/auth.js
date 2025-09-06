@@ -1,13 +1,11 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import apiService from '@/services/api'
+import offlineStorage from '@/services/offlineStorage'
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref(null)
     const isLoading = ref(false)
-
-    // Default credentials (you can change these)
-    const DEFAULT_USERNAME = 'admin'
-    const DEFAULT_PASSWORD = 'admin123'
 
     const isAuthenticated = computed(() => !!user.value)
 
@@ -15,7 +13,30 @@ export const useAuthStore = defineStore('auth', () => {
     function initAuth() {
         const savedUser = localStorage.getItem('trackmymoney_user')
         if (savedUser) {
-            user.value = JSON.parse(savedUser)
+            try {
+                const userData = JSON.parse(savedUser)
+                user.value = userData.user
+                // Verify token is still valid
+                verifyToken()
+            } catch (error) {
+                console.error('Error parsing saved user data:', error)
+                logout()
+            }
+        }
+    }
+
+    // Verify token with backend
+    async function verifyToken() {
+        try {
+            const response = await apiService.verifyToken()
+            if (response.success) {
+                user.value = response.user
+            } else {
+                logout()
+            }
+        } catch (error) {
+            console.error('Token verification failed:', error)
+            logout()
         }
     }
 
@@ -24,26 +45,54 @@ export const useAuthStore = defineStore('auth', () => {
         isLoading.value = true
 
         try {
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            const response = await apiService.login(username, password)
 
-            // Simple credential check (in production, this would be an API call)
-            if (username === DEFAULT_USERNAME && password === DEFAULT_PASSWORD) {
+            if (response.success) {
                 const userData = {
-                    id: 1,
-                    username: username,
-                    name: 'Admin User',
+                    user: response.user,
+                    token: response.token,
                     loginTime: new Date().toISOString()
                 }
 
-                user.value = userData
+                user.value = response.user
                 localStorage.setItem('trackmymoney_user', JSON.stringify(userData))
+                await saveUserOffline(userData)
                 return { success: true }
             } else {
-                return { success: false, message: 'Invalid credentials' }
+                return { success: false, message: response.message }
             }
         } catch (error) {
-            return { success: false, message: 'Login failed. Please try again.' }
+            console.error('Login error:', error)
+            return { success: false, message: error.message || 'Login failed. Please try again.' }
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    // Register function
+    async function register(username, password, name) {
+        isLoading.value = true
+
+        try {
+            const response = await apiService.register(username, password, name)
+
+            if (response.success) {
+                const userData = {
+                    user: response.user,
+                    token: response.token,
+                    loginTime: new Date().toISOString()
+                }
+
+                user.value = response.user
+                localStorage.setItem('trackmymoney_user', JSON.stringify(userData))
+                await saveUserOffline(userData)
+                return { success: true }
+            } else {
+                return { success: false, message: response.message }
+            }
+        } catch (error) {
+            console.error('Registration error:', error)
+            return { success: false, message: error.message || 'Registration failed. Please try again.' }
         } finally {
             isLoading.value = false
         }
@@ -53,18 +102,14 @@ export const useAuthStore = defineStore('auth', () => {
     function logout() {
         user.value = null
         localStorage.removeItem('trackmymoney_user')
+        // Clear offline data on logout
+        offlineStorage.clearAllData()
     }
 
-    // Change password function
-    async function changePassword(currentPassword, newPassword) {
-        if (currentPassword !== DEFAULT_PASSWORD) {
-            return { success: false, message: 'Current password is incorrect' }
-        }
-
-        // In a real app, you'd update this on the server
-        // For now, we'll just simulate success
-        return { success: true, message: 'Password changed successfully' }
+    async function saveUserOffline(userData) {
+        await offlineStorage.saveUser(userData)
     }
+
 
     return {
         user,
@@ -72,7 +117,8 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         initAuth,
         login,
+        register,
         logout,
-        changePassword
+        verifyToken
     }
 })

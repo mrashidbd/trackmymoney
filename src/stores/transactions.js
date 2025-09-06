@@ -1,10 +1,15 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns'
+import apiService from '@/services/api'
+import offlineStorage from '@/services/offlineStorage'
+import syncService from '@/services/syncService'
 
 export const useTransactionsStore = defineStore('transactions', () => {
     const transactions = ref([])
     const isLoading = ref(false)
+    const currentYear = ref(new Date().getFullYear())
+    const isOnline = ref(navigator.onLine)
 
     // Computed properties for statistics
     const totalIncome = computed(() => {
@@ -66,68 +71,207 @@ export const useTransactionsStore = defineStore('transactions', () => {
             .slice(0, 10)
     })
 
-    // Initialize transactions from localStorage
-    function initTransactions() {
-        const savedTransactions = localStorage.getItem('trackmymoney_transactions')
-        if (savedTransactions) {
-            transactions.value = JSON.parse(savedTransactions)
-        }
+    // Set current year
+    function setCurrentYear(year) {
+        currentYear.value = year
     }
 
-    // Save transactions to localStorage
-    function saveTransactions() {
-        localStorage.setItem('trackmymoney_transactions', JSON.stringify(transactions.value))
+    // Get current user
+    function getCurrentUser() {
+        const userData = localStorage.getItem('trackmymoney_user')
+        return userData ? JSON.parse(userData) : null
     }
 
-    // Add new transaction
-    function addTransaction(transactionData) {
-        const newTransaction = {
-            id: Date.now(), // Simple ID generation
-            amount: parseFloat(transactionData.amount),
-            date: transactionData.date,
-            type: transactionData.type,
-            categoryId: parseInt(transactionData.categoryId),
-            description: transactionData.description || '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        }
+    // Initialize transactions - hybrid approach
+    async function initTransactions(year = null) {
+        isLoading.value = true
+        const user = getCurrentUser()
+        const targetYear = year || currentYear.value
 
-        transactions.value.push(newTransaction)
-        saveTransactions()
-        return newTransaction
-    }
-
-    // Update transaction
-    function updateTransaction(id, updateData) {
-        const index = transactions.value.findIndex(t => t.id === id)
-        if (index !== -1) {
-            transactions.value[index] = {
-                ...transactions.value[index],
-                ...updateData,
-                amount: parseFloat(updateData.amount),
-                categoryId: parseInt(updateData.categoryId),
-                updatedAt: new Date().toISOString()
+        try {
+            if (!user?.user?.id) {
+                console.error('No user found')
+                return
             }
-            saveTransactions()
-            return transactions.value[index]
+
+            // Always load from offline storage first (instant)
+            const offlineTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
+            transactions.value = offlineTransactions
+
+            // If online, try to sync with server
+            if (isOnline.value) {
+                try {
+                    await syncService.fullSync(user.user.id, targetYear)
+                    // Reload from offline storage after sync
+                    const syncedTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
+                    transactions.value = syncedTransactions
+                } catch (error) {
+                    console.error('Sync failed, using offline data:', error)
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing transactions:', error)
+        } finally {
+            isLoading.value = false
         }
-        return null
     }
 
-    // Delete transaction
-    function deleteTransaction(id) {
-        const index = transactions.value.findIndex(t => t.id === id)
-        if (index !== -1) {
-            transactions.value.splice(index, 1)
-            saveTransactions()
-            return { success: true, message: 'Transaction deleted successfully' }
+    // Add new transaction - hybrid approach
+    async function addTransaction(transactionData) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
         }
-        return { success: false, message: 'Transaction not found' }
+
+        try {
+            // Save offline first
+            const savedTransaction = await offlineStorage.saveTransaction(
+                {
+                    ...transactionData,
+                    needsSync: true
+                },
+                user.user.id
+            )
+
+            // Add to local state immediately
+            transactions.value.push(savedTransaction)
+
+            // If online, try to sync immediately
+            if (isOnline.value) {
+                try {
+                    const response = await apiService.createTransaction(transactionData)
+                    if (response.success) {
+                        // Update local storage with server data
+                        await offlineStorage.markTransactionSynced(
+                            savedTransaction.localId,
+                            response.data.id,
+                            response.data
+                        )
+
+                        // Update local state
+                        const index = transactions.value.findIndex(t =>
+                            t.localId === savedTransaction.localId
+                        )
+                        if (index !== -1) {
+                            transactions.value[index] = { ...response.data, needsSync: false }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to sync transaction creation:', error)
+                    // Transaction is saved offline, will sync later
+                }
+            }
+
+            return savedTransaction
+        } catch (error) {
+            console.error('Error creating transaction:', error)
+            throw error
+        }
+    }
+
+    // Update transaction - hybrid approach
+    async function updateTransaction(id, updateData) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
+        }
+
+        try {
+            // Update offline first
+            const updatedTransaction = await offlineStorage.updateTransaction(
+                id,
+                updateData,
+                user.user.id
+            )
+
+            if (updatedTransaction) {
+                // Update local state
+                const index = transactions.value.findIndex(t =>
+                    t.id === id || t.localId === id
+                )
+                if (index !== -1) {
+                    transactions.value[index] = updatedTransaction
+                }
+
+                // If online, try to sync immediately
+                if (isOnline.value && updatedTransaction.id) {
+                    try {
+                        const response = await apiService.updateTransaction(
+                            updatedTransaction.id,
+                            updateData
+                        )
+                        if (response.success) {
+                            // Update offline storage
+                            await offlineStorage.db.transactions.put({
+                                ...updatedTransaction,
+                                ...response.data,
+                                needsSync: false,
+                                serverUpdatedAt: response.data.updatedAt
+                            })
+
+                            // Update local state
+                            transactions.value[index] = { ...response.data, needsSync: false }
+                        }
+                    } catch (error) {
+                        console.error('Failed to sync transaction update:', error)
+                        // Update is saved offline, will sync later
+                    }
+                }
+
+                return updatedTransaction
+            }
+            return null
+        } catch (error) {
+            console.error('Error updating transaction:', error)
+            throw error
+        }
+    }
+
+    // Delete transaction - hybrid approach
+    async function deleteTransaction(id) {
+        const user = getCurrentUser()
+        if (!user?.user?.id) {
+            throw new Error('No user found')
+        }
+
+        try {
+            // Delete offline first
+            const success = await offlineStorage.deleteTransaction(id, user.user.id)
+
+            if (success) {
+                // Remove from local state
+                const index = transactions.value.findIndex(t =>
+                    t.id === id || t.localId === id
+                )
+                if (index !== -1) {
+                    transactions.value.splice(index, 1)
+                }
+
+                // If online, try to sync immediately
+                if (isOnline.value) {
+                    try {
+                        const transaction = await offlineStorage.db.transactions.get(id)
+                        if (transaction?.id && !transaction.localId) {
+                            await apiService.deleteTransaction(transaction.id, currentYear.value)
+                        }
+                    } catch (error) {
+                        console.error('Failed to sync transaction deletion:', error)
+                        // Deletion is saved offline, will sync later
+                    }
+                }
+
+                return { success: true, message: 'Transaction deleted successfully' }
+            }
+            return { success: false, message: 'Transaction not found' }
+        } catch (error) {
+            console.error('Error deleting transaction:', error)
+            return { success: false, message: error.message || 'Failed to delete transaction' }
+        }
     }
 
     // Get transaction by ID
     function getTransactionById(id) {
-        return transactions.value.find(t => t.id === id)
+        return transactions.value.find(t => t.id === id || t.localId === id)
     }
 
     // Filter transactions by date range
@@ -155,7 +299,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     function searchTransactions(query) {
         const searchTerm = query.toLowerCase()
         return transactions.value.filter(transaction =>
-            transaction.description.toLowerCase().includes(searchTerm)
+            (transaction.description || '').toLowerCase().includes(searchTerm)
         )
     }
 
@@ -203,9 +347,43 @@ export const useTransactionsStore = defineStore('transactions', () => {
         return categoryTotals
     }
 
+    // Force sync
+    async function forceSync() {
+        const user = getCurrentUser()
+        if (!user?.user?.id || !isOnline.value) {
+            return { success: false, message: 'Cannot sync while offline' }
+        }
+
+        try {
+            await syncService.fullSync(user.user.id, currentYear.value)
+            // Reload transactions after sync
+            await initTransactions()
+            return { success: true, message: 'Sync completed successfully' }
+        } catch (error) {
+            console.error('Force sync failed:', error)
+            return { success: false, message: error.message }
+        }
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+        isOnline.value = true
+        // Auto-sync when coming online
+        const user = getCurrentUser()
+        if (user?.user?.id) {
+            syncService.backgroundSync(user.user.id, currentYear.value)
+        }
+    })
+
+    window.addEventListener('offline', () => {
+        isOnline.value = false
+    })
+
     return {
         transactions,
         isLoading,
+        currentYear,
+        isOnline,
         totalIncome,
         totalExpenses,
         netBalance,
@@ -213,6 +391,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         currentMonthTransactions,
         currentMonthStats,
         recentTransactions,
+        setCurrentYear,
         initTransactions,
         addTransaction,
         updateTransaction,
@@ -223,6 +402,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         getTransactionsByCategory,
         searchTransactions,
         getMonthlyData,
-        getCategoryBreakdown
+        getCategoryBreakdown,
+        forceSync
     }
 })

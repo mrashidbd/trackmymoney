@@ -33,7 +33,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-          <select v-model="filterType" class="input-field">
+          <select v-model="filterType" @change="handleTypeFilterChange" class="input-field">
             <option value="">All Types</option>
             <option value="income">Income</option>
             <option value="expense">Expense</option>
@@ -41,10 +41,10 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select v-model="filterCategory" class="input-field">
-            <option value="">All Categories</option>
+          <select v-model="filterCategory" @change="handleCategoryFilterChange" class="input-field">
+            <option value="">{{ filterType ? 'All Categories' : 'All Categories' }}</option>
             <option
-                v-for="category in categoriesStore.categories"
+                v-for="category in availableCategories"
                 :key="category.id"
                 :value="category.id"
             >
@@ -351,7 +351,14 @@ const filterDateRange = ref('all')
 const currentPage = ref(1)
 const itemsPerPage = 10
 
-// Computed properties
+// Computed properties for available categories based on selected type
+const availableCategories = computed(() => {
+  if (!filterType.value) return categoriesStore.categories // Show all categories when no type selected
+  return filterType.value === 'income'
+      ? categoriesStore.incomeCategories
+      : categoriesStore.expenseCategories
+})
+
 const filteredTransactions = computed(() => {
   let transactions = [...transactionsStore.transactions]
 
@@ -460,6 +467,29 @@ function getCategoryName(categoryId) {
   return category ? category.name : 'Unknown Category'
 }
 
+// Handle type filter change - reset category when type changes
+function handleTypeFilterChange() {
+  // Only reset category if it doesn't match the new type
+  if (filterCategory.value && filterType.value) {
+    const selectedCategory = categoriesStore.getCategoryById(parseInt(filterCategory.value))
+    if (selectedCategory && selectedCategory.type !== filterType.value) {
+      filterCategory.value = '' // Reset category selection when type changes
+    }
+  }
+  currentPage.value = 1 // Reset to first page
+}
+
+// Handle category filter change - update type based on selected category
+function handleCategoryFilterChange() {
+  if (filterCategory.value) {
+    const selectedCategory = categoriesStore.getCategoryById(parseInt(filterCategory.value))
+    if (selectedCategory && selectedCategory.type !== filterType.value) {
+      filterType.value = selectedCategory.type
+    }
+  }
+  currentPage.value = 1 // Reset to first page
+}
+
 // Modal functions
 function openTransactionModal(transaction = null) {
   editingTransaction.value = transaction
@@ -504,8 +534,8 @@ watch([searchQuery, filterType, filterCategory, filterDateRange], () => {
 })
 
 // Initialize stores
-onMounted(() => {
-  categoriesStore.initCategories()
-  transactionsStore.initTransactions()
+onMounted(async () => {
+  await categoriesStore.initCategories()
+  await transactionsStore.initTransactions()
 })
 </script>
