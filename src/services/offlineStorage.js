@@ -248,16 +248,28 @@ class OfflineStorageService {
     }
 
     // Get database statistics
+// Get database statistics
     async getStats() {
-        const categoriesCount = await this.db.categories.count()
-        const transactionsCount = await this.db.transactions.count()
-        const unsyncedItems = await this.db.categories.where('needsSync').equals(true).count() +
-            await this.db.transactions.where('needsSync').equals(true).count()
+        try {
+            const categoriesCount = await this.db.categories.count()
+            const transactionsCount = await this.db.transactions.count()
 
-        return {
-            categoriesCount,
-            transactionsCount,
-            unsyncedItems
+            // Use simpler query to avoid compound index issues
+            const unsyncedCategories = await this.db.categories.where('needsSync').equals(true).count()
+            const unsyncedTransactions = await this.db.transactions.where('needsSync').equals(true).count()
+
+            return {
+                categoriesCount,
+                transactionsCount,
+                unsyncedItems: unsyncedCategories + unsyncedTransactions
+            }
+        } catch (error) {
+            console.error('Error getting stats:', error)
+            return {
+                categoriesCount: 0,
+                transactionsCount: 0,
+                unsyncedItems: 0
+            }
         }
     }
 }

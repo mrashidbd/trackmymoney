@@ -23,7 +23,8 @@
     "vue-router": "^4.2.5",
     "axios": "^1.6.2",
     "dexie": "^3.2.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@vueuse/core": "^10.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.0",

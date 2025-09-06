@@ -15,6 +15,8 @@
         </div>
       </main>
     </div>
+    <InstallPrompt />
+    <SyncStatus />
   </div>
 </template>
 
@@ -22,6 +24,8 @@
 import { ref } from 'vue'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
+import InstallPrompt from '@/components/PWA/InstallPrompt.vue'
+import SyncStatus from '@/components/PWA/SyncStatus.vue'
 
 const sidebarOpen = ref(false)
 </script>
