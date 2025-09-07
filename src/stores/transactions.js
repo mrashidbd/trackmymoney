@@ -128,6 +128,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
             const savedTransaction = await offlineStorage.saveTransaction(
                 {
                     ...transactionData,
+                    amount: parseFloat(transactionData.amount),
                     needsSync: true
                 },
                 user.user.id
@@ -142,18 +143,27 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     const response = await apiService.createTransaction(transactionData)
                     if (response.success) {
                         // Update local storage with server data
-                        await offlineStorage.markTransactionSynced(
-                            savedTransaction.localId,
-                            response.data.id,
-                            response.data
-                        )
+                        const updatedTransaction = {
+                            ...savedTransaction,
+                            id: response.data.id,
+                            localId: null,
+                            needsSync: false,
+                            serverUpdatedAt: response.data.updatedAt
+                        }
+
+                        await offlineStorage.db.transactions.put(updatedTransaction)
+
+                        // Delete old local record if ID changed
+                        if (savedTransaction.localId !== response.data.id) {
+                            await offlineStorage.db.transactions.delete(savedTransaction.localId)
+                        }
 
                         // Update local state
                         const index = transactions.value.findIndex(t =>
-                            t.localId === savedTransaction.localId
+                            t.id === savedTransaction.id
                         )
                         if (index !== -1) {
-                            transactions.value[index] = { ...response.data, needsSync: false }
+                            transactions.value[index] = updatedTransaction
                         }
                     }
                 } catch (error) {

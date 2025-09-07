@@ -56,17 +56,16 @@
           <div
               class="w-3 h-3 rounded-full flex-shrink-0"
               :style="{
-              backgroundColor: selectedType === 'both'
-                ? (item.type === 'income' ? colors[index % colors.length] : colors[index % colors.length] + '80')
-                : colors[index % colors.length]
-            }"
+          backgroundColor: getItemColor(item, index)
+        }"
           ></div>
           <span class="text-gray-700 truncate">
-            {{ item.name }}: ${{ formatCurrency(item.total) }}
-          </span>
+        {{ item.name }}: ${{ formatCurrency(item.total) }}
+      </span>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -94,6 +93,14 @@ const colors = [
   '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
   '#ec4899', '#f43f5e', '#64748b', '#6b7280', '#9ca3af'
 ]
+
+const getItemColor = (item, index) => {
+  if (selectedType.value === 'both') {
+    const baseColor = colors[index % colors.length]
+    return item.type === 'income' ? baseColor : baseColor + '80'
+  }
+  return colors[index % colors.length]
+}
 
 const getDateRange = () => {
   const now = new Date()

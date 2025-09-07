@@ -64,13 +64,24 @@ class OfflineStorageService {
             userId,
             year,
             deleted: false,
-            needsSync: category.needsSync !== false, // Default to true unless explicitly false
-            localId: category.localId || (category.id ? null : this.generateLocalId()),
+            needsSync: category.needsSync !== false,
             updatedAt: new Date().toISOString()
         }
 
         if (!categoryData.createdAt) {
             categoryData.createdAt = categoryData.updatedAt
+        }
+
+        // Handle primary key properly
+        if (category.id) {
+            // Has server ID - use it
+            categoryData.id = category.id
+            categoryData.localId = null
+        } else {
+            // No server ID - generate local ID and use it as primary key
+            const localId = this.generateLocalId()
+            categoryData.id = localId  // Use localId as primary key
+            categoryData.localId = localId
         }
 
         await this.db.categories.put(categoryData)
@@ -135,12 +146,23 @@ class OfflineStorageService {
             year,
             deleted: false,
             needsSync: transaction.needsSync !== false,
-            localId: transaction.localId || (transaction.id ? null : this.generateLocalId()),
             updatedAt: new Date().toISOString()
         }
 
         if (!transactionData.createdAt) {
             transactionData.createdAt = transactionData.updatedAt
+        }
+
+        // Handle primary key properly
+        if (transaction.id) {
+            // Has server ID - use it
+            transactionData.id = transaction.id
+            transactionData.localId = null
+        } else {
+            // No server ID - generate local ID and use it as primary key
+            const localId = this.generateLocalId()
+            transactionData.id = localId  // Use localId as primary key
+            transactionData.localId = localId
         }
 
         await this.db.transactions.put(transactionData)

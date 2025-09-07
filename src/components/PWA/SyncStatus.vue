@@ -132,23 +132,30 @@ onMounted(async () => {
   syncService.onSyncStatusChange(handleSyncStatus)
 
   // Check for unsynced items periodically
-  checkUnsyncedItems()
-  unsyncedInterval = setInterval(checkUnsyncedItems, 30000) // Every 30 seconds
+  await checkUnsyncedItems()
+  unsyncedInterval = setInterval(checkUnsyncedItems, 60000) // Every 60 seconds
 
-  // Listen for SW updates
+  // Listen for SW updates - Fixed version
   if ('serviceWorker' in navigator) {
-    const { registerSW } = await import('virtual:pwa-register')
-    registerSW({
-      onNeedRefresh: () => {
-        updateAvailable.value = true
-      },
-      onOfflineReady: () => {
-        console.log('App ready to work offline')
-      },
-      onRegisterError: (error) => {
-        console.error('SW registration error:', error)
-      }
-    })
+    try {
+      // Use dynamic import to avoid build-time issues
+      const pwaModule = await import('virtual:pwa-register')
+      const { registerSW } = pwaModule
+
+      registerSW({
+        onNeedRefresh: () => {
+          updateAvailable.value = true
+        },
+        onOfflineReady: () => {
+          console.log('App ready to work offline')
+        },
+        onRegisterError: (error) => {
+          console.error('SW registration error:', error)
+        }
+      })
+    } catch (error) {
+      console.log('PWA not available:', error)
+    }
   }
 
   // Listen for background sync messages
@@ -160,4 +167,5 @@ onMounted(async () => {
     })
   }
 })
+
 </script>

@@ -48,8 +48,19 @@ class SyncService {
             return { success: true, message: 'Sync completed successfully' }
         } catch (error) {
             console.error('Sync failed:', error)
-            this.notifySyncListeners({ status: 'error', error: error.message })
-            return { success: false, message: error.message }
+
+            // More specific error handling
+            let errorMessage = 'Sync failed'
+            if (error.name === 'NetworkError' || !navigator.onLine) {
+                errorMessage = 'Network error - will retry when connection is restored'
+            } else if (error.status === 401) {
+                errorMessage = 'Authentication expired - please log in again'
+            } else if (error.status === 429) {
+                errorMessage = 'Too many requests - sync will retry automatically'
+            }
+
+            this.notifySyncListeners({ status: 'error', error: errorMessage })
+            return { success: false, message: errorMessage }
         } finally {
             this.isSyncing = false
         }
@@ -164,23 +175,35 @@ class SyncService {
         for (const category of unsyncedCategories) {
             try {
                 if (category.deleted) {
-                    // Delete on server
+                    // Delete on server (only if it has a real server ID)
                     if (category.id && !category.localId) {
                         await apiService.deleteCategory(category.id, year)
                     }
                     // Remove from local storage
-                    await offlineStorage.db.categories.delete(category.id || category.localId)
-                } else if (category.localId && !category.id) {
-                    // Create new category on server
+                    await offlineStorage.db.categories.delete(category.id)
+                } else if (category.localId) {
+                    // Create new category on server (local-only category)
                     const response = await apiService.createCategory({
                         name: category.name,
                         type: category.type
                     }, year)
 
                     if (response.success) {
-                        await offlineStorage.markCategorySynced(category.localId, response.data.id, response.data)
+                        // Update the local record with server ID
+                        await offlineStorage.db.categories.put({
+                            ...category,
+                            id: response.data.id,  // Update primary key to server ID
+                            localId: null,         // Clear local ID
+                            needsSync: false,
+                            serverUpdatedAt: response.data.updatedAt
+                        })
+
+                        // Delete the old local record if different ID
+                        if (category.localId !== response.data.id) {
+                            await offlineStorage.db.categories.delete(category.localId)
+                        }
                     }
-                } else if (category.id) {
+                } else {
                     // Update existing category on server
                     const response = await apiService.updateCategory(category.id, {
                         name: category.name
@@ -209,14 +232,14 @@ class SyncService {
         for (const transaction of unsyncedTransactions) {
             try {
                 if (transaction.deleted) {
-                    // Delete on server
+                    // Delete on server (only if it has a real server ID)
                     if (transaction.id && !transaction.localId) {
                         await apiService.deleteTransaction(transaction.id, year)
                     }
                     // Remove from local storage
-                    await offlineStorage.db.transactions.delete(transaction.id || transaction.localId)
-                } else if (transaction.localId && !transaction.id) {
-                    // Create new transaction on server
+                    await offlineStorage.db.transactions.delete(transaction.id)
+                } else if (transaction.localId) {
+                    // Create new transaction on server (local-only transaction)
                     const response = await apiService.createTransaction({
                         amount: transaction.amount,
                         date: transaction.date,
@@ -226,9 +249,21 @@ class SyncService {
                     })
 
                     if (response.success) {
-                        await offlineStorage.markTransactionSynced(transaction.localId, response.data.id, response.data)
+                        // Update the local record with server ID
+                        await offlineStorage.db.transactions.put({
+                            ...transaction,
+                            id: response.data.id,  // Update primary key to server ID
+                            localId: null,         // Clear local ID
+                            needsSync: false,
+                            serverUpdatedAt: response.data.updatedAt
+                        })
+
+                        // Delete the old local record if different ID
+                        if (transaction.localId !== response.data.id) {
+                            await offlineStorage.db.transactions.delete(transaction.localId)
+                        }
                     }
-                } else if (transaction.id) {
+                } else {
                     // Update existing transaction on server
                     const response = await apiService.updateTransaction(transaction.id, {
                         amount: transaction.amount,

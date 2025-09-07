@@ -91,18 +91,27 @@ export const useCategoriesStore = defineStore('categories', () => {
                     const response = await apiService.createCategory(categoryData, currentYear.value)
                     if (response.success) {
                         // Update local storage with server data
-                        await offlineStorage.markCategorySynced(
-                            savedCategory.localId,
-                            response.data.id,
-                            response.data
-                        )
+                        const updatedCategory = {
+                            ...savedCategory,
+                            id: response.data.id,
+                            localId: null,
+                            needsSync: false,
+                            serverUpdatedAt: response.data.updatedAt
+                        }
+
+                        await offlineStorage.db.categories.put(updatedCategory)
+
+                        // Delete old local record if ID changed
+                        if (savedCategory.localId !== response.data.id) {
+                            await offlineStorage.db.categories.delete(savedCategory.localId)
+                        }
 
                         // Update local state
                         const index = categories.value.findIndex(cat =>
-                            cat.localId === savedCategory.localId
+                            cat.id === savedCategory.id
                         )
                         if (index !== -1) {
-                            categories.value[index] = { ...response.data, needsSync: false }
+                            categories.value[index] = updatedCategory
                         }
                     }
                 } catch (error) {
@@ -186,25 +195,32 @@ export const useCategoriesStore = defineStore('categories', () => {
         }
 
         try {
-            // Delete offline first
-            const success = await offlineStorage.deleteCategory(id, user.user.id, currentYear.value)
+            // First find the category to check if it exists
+            const category = categories.value.find(cat =>
+                (cat.id === id || cat.localId === id)
+            )
+
+            if (!category) {
+                return { success: false, message: 'Category not found' }
+            }
+
+            // Delete offline first using the correct identifier
+            const deleteId = category.id || category.localId
+            const success = await offlineStorage.deleteCategory(deleteId, user.user.id, currentYear.value)
 
             if (success) {
                 // Remove from local state
                 const index = categories.value.findIndex(cat =>
-                    cat.id === id || cat.localId === id
+                    (cat.id === id || cat.localId === id)
                 )
                 if (index !== -1) {
                     categories.value.splice(index, 1)
                 }
 
-                // If online, try to sync immediately
-                if (isOnline.value) {
+                // If online and has server ID, try to sync immediately
+                if (isOnline.value && category.id && !category.localId) {
                     try {
-                        const category = await offlineStorage.db.categories.get(id)
-                        if (category?.id && !category.localId) {
-                            await apiService.deleteCategory(category.id, currentYear.value)
-                        }
+                        await apiService.deleteCategory(category.id, currentYear.value)
                     } catch (error) {
                         console.error('Failed to sync category deletion:', error)
                         // Deletion is saved offline, will sync later
