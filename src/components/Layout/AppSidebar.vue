@@ -17,7 +17,7 @@
     <div class="flex items-center justify-between h-20 px-6 border-b border-gray-200">
       <div class="flex items-center flex-col space-y-1">
         <div class="w-8 h-8 flex items-center justify-center">
-          <img src="/public/logo/Logo-Icon.png" class="w-8 h-auto" alt="Track My Money Logo">
+          <img src="/logo/Logo-Icon.png" class="w-8 h-auto" alt="Track My Money Logo">
         </div>
         <div>
           <h2 class="text-xl font-bold text-green-700">Track My Money</h2>
