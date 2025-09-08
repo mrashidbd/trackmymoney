@@ -14,14 +14,14 @@
     ]"
   >
     <!-- Sidebar header -->
-    <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-      <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-          </svg>
+    <div class="flex items-center justify-between h-20 px-6 border-b border-gray-200">
+      <div class="flex items-center flex-col space-y-1">
+        <div class="w-8 h-8 flex items-center justify-center">
+          <img src="/public/logo/Logo-Icon.png" class="w-8 h-auto" alt="Track My Money Logo">
         </div>
-        <span class="text-xl font-bold text-gray-900">Track My Money</span>
+        <div>
+          <h2 class="text-xl font-bold text-green-700">Track My Money</h2>
+        </div>
       </div>
 
       <!-- Close button for mobile -->
