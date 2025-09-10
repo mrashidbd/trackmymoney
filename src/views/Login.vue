@@ -80,15 +80,6 @@
             <span v-else>Sign in</span>
           </button>
         </div>
-
-        <!-- Default credentials info -->
-        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 class="text-sm font-medium text-blue-800 mb-2">Default Credentials:</h3>
-          <div class="text-sm text-blue-700 space-y-1">
-            <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> admin123</p>
-          </div>
-        </div>
       </form>
     </div>
   </div>

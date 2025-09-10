@@ -83,7 +83,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     }
 
     // Initialize transactions - hybrid approach
-    async function initTransactions(year = null) {
+    async function initTransactions(year = null, userId = null) {
         isLoading.value = true
         const user = getCurrentUser()
         const targetYear = year || currentYear.value
@@ -94,17 +94,31 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 return
             }
 
-            // Always load from offline storage first (instant)
-            const offlineTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
-            transactions.value = offlineTransactions
+            // If viewing another user's transactions (superadmin only)
+            const targetUserId = userId || user.user.id
+
+            // Always load from offline storage first (instant) - only for own user
+            if (!userId) {
+                const offlineTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
+                transactions.value = offlineTransactions
+            }
 
             // If online, try to sync with server
             if (isOnline.value) {
                 try {
-                    await syncService.fullSync(user.user.id, targetYear)
-                    // Reload from offline storage after sync
-                    const syncedTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
-                    transactions.value = syncedTransactions
+                    // If viewing another user, just fetch from server
+                    if (userId) {
+                        const response = await apiService.getTransactions(targetYear, userId)
+                        if (response.success) {
+                            transactions.value = response.data
+                        }
+                    } else {
+                        // Normal sync for own transactions
+                        await syncService.fullSync(user.user.id, targetYear)
+                        // Reload from offline storage after sync
+                        const syncedTransactions = await offlineStorage.getTransactions(user.user.id, targetYear)
+                        transactions.value = syncedTransactions
+                    }
                 } catch (error) {
                     console.error('Sync failed, using offline data:', error)
                 }

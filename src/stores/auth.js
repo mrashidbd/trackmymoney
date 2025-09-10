@@ -9,13 +9,19 @@ export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = computed(() => !!user.value)
 
+    const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+
     // Initialize auth state from localStorage
     function initAuth() {
         const savedUser = localStorage.getItem('trackmymoney_user')
         if (savedUser) {
             try {
                 const userData = JSON.parse(savedUser)
-                user.value = userData.user
+                user.value = {
+                    ...userData.user,
+                    role: userData.user.role || 'user'
+                }
+
                 // Verify token is still valid
                 verifyToken()
             } catch (error) {
@@ -115,6 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         isLoading,
         isAuthenticated,
+        isSuperAdmin,
         initAuth,
         login,
         register,

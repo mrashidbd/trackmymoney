@@ -33,6 +33,12 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
+        path: '/users',
+        name: 'Users',
+        component: () => import('@/views/Users.vue'),
+        meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
         path: '/:pathMatch(.*)*',
         redirect: '/'
     }
@@ -50,6 +56,8 @@ router.beforeEach((to, from, next) => {
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next('/login')
     } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+        next('/')
+    } else if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
         next('/')
     } else {
         next()

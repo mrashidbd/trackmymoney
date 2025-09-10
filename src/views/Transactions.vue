@@ -3,11 +3,16 @@
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Transactions</h1>
-        <p class="mt-1 text-sm text-gray-500">Manage your income and expenses</p>
+        <h1 class="text-2xl font-bold text-gray-900">
+          {{ isViewingOtherUser ? 'User Transactions' : 'Transactions' }}
+        </h1>
+        <p class="mt-1 text-sm text-gray-500">
+          {{ isViewingOtherUser ? `Viewing transactions for User ID: ${viewingUserId}` : 'Manage your income and expenses' }}
+        </p>
       </div>
       <div class="mt-4 sm:mt-0">
         <button
+            v-if="!isViewingOtherUser"
             @click="openTransactionModal()"
             class="btn-primary inline-flex items-center space-x-2"
         >
@@ -16,6 +21,16 @@
           </svg>
           <span>Add Transaction</span>
         </button>
+        <router-link
+            v-else
+            to="/users"
+            class="btn-secondary inline-flex items-center space-x-2"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Users</span>
+        </router-link>
       </div>
     </div>
 
@@ -188,7 +203,8 @@
                 {{ formatDate(transaction.date) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="flex items-center justify-end space-x-2">
+
+                <div v-if="!isViewingOtherUser" class="flex items-center justify-end space-x-2">
                   <button
                       @click="editTransaction(transaction)"
                       class="text-blue-600 hover:text-blue-700"
@@ -206,6 +222,7 @@
                     </svg>
                   </button>
                 </div>
+                <span v-else class="text-sm text-gray-500">View only</span>
               </td>
             </tr>
             </tbody>
@@ -332,6 +349,12 @@ import { useTransactionsStore } from '@/stores/transactions'
 import { useCategoriesStore } from '@/stores/categories'
 import TransactionModal from '@/components/Transaction/TransactionModal.vue'
 
+import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const route = useRoute()
+const authStore = useAuthStore()
+
 const transactionsStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
 
@@ -358,6 +381,16 @@ const availableCategories = computed(() => {
       ? categoriesStore.incomeCategories
       : categoriesStore.expenseCategories
 })
+
+// Check if viewing another user's transactions (superadmin only)
+const viewingUserId = computed(() => {
+  if (authStore.isSuperAdmin && route.query.userId) {
+    return parseInt(route.query.userId)
+  }
+  return null
+})
+
+const isViewingOtherUser = computed(() => viewingUserId.value !== null)
 
 const filteredTransactions = computed(() => {
   let transactions = [...transactionsStore.transactions]
@@ -536,6 +569,13 @@ watch([searchQuery, filterType, filterCategory, filterDateRange], () => {
 // Initialize stores
 onMounted(async () => {
   await categoriesStore.initCategories()
-  await transactionsStore.initTransactions()
+
+  // If superadmin viewing another user, pass their ID
+  if (viewingUserId.value) {
+    // We'll need to modify the transactions store to handle this
+    await transactionsStore.initTransactions(null, viewingUserId.value)
+  } else {
+    await transactionsStore.initTransactions()
+  }
 })
 </script>

@@ -108,9 +108,13 @@ class ApiService {
     }
 
     // Transactions endpoints
-    async getTransactions(year) {
-        const yearParam = year ? `?year=${year}` : ''
-        return this.request(`/transactions${yearParam}`)
+    async getTransactions(year, userId = null) {
+        let params = new URLSearchParams()
+        if (year) params.append('year', year)
+        if (userId) params.append('userId', userId)
+        const queryString = params.toString()
+
+        return this.request(`/transactions${queryString ? '?' + queryString : ''}`)
     }
 
     async getTransactionsByRange(startDate, endDate, year) {
