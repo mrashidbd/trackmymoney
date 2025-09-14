@@ -37,7 +37,7 @@
           <thead class="bg-gray-50">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
@@ -60,7 +60,7 @@
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <span class="text-sm text-gray-900">{{ user.username }}</span>
+              <span class="text-sm text-gray-900">{{ user.email }}</span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
@@ -97,7 +97,7 @@
                 <button
                     @click="editUser(user)"
                     class="text-blue-600 hover:text-blue-700"
-                    :disabled="user.username === 'mRashid'"
+                    :disabled="user.email === 'me@mrashid.me'"
                 >
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -167,18 +167,18 @@
             </div>
 
             <div v-if="!editingUser">
-              <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
-                Username <span class="text-red-500">*</span>
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                Email <span class="text-red-500">*</span>
               </label>
               <input
-                  id="username"
-                  v-model="userForm.username"
-                  type="text"
+                  id="email"
+                  v-model="userForm.email"
+                  type="email"
                   required
                   class="input-field"
-                  :class="{ 'border-red-500': errors.username }"
+                  :class="{ 'border-red-500': errors.email }"
               />
-              <p v-if="errors.username" class="mt-1 text-sm text-red-600">{{ errors.username }}</p>
+              <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
             </div>
 
             <div>
@@ -205,7 +205,7 @@
                   v-model="userForm.role"
                   required
                   class="input-field"
-                  :disabled="editingUser?.username === 'mRashid'"
+                  :disabled="editingUser?.email === 'me@mrashid.me'"
               >
                 <option value="user">User</option>
                 <option value="superadmin">Super Admin</option>
@@ -253,7 +253,7 @@ const generalError = ref('')
 
 const userForm = reactive({
   name: '',
-  username: '',
+  email: '',
   password: '',
   role: 'user'
 })
@@ -267,7 +267,7 @@ function formatDate(dateString) {
 
 function clearForm() {
   userForm.name = ''
-  userForm.username = ''
+  userForm.email = ''
   userForm.password = ''
   userForm.role = 'user'
   Object.keys(errors).forEach(key => delete errors[key])
@@ -283,17 +283,16 @@ function validateForm() {
     isValid = false
   }
 
-  if (!editingUser.value && !userForm.username.trim()) {
-    errors.username = 'Username is required'
+  if (!editingUser.value && !userForm.email.trim()) {
+    errors.email = 'Email is required'
     isValid = false
-  }
-
-  if (!editingUser.value && !userForm.password) {
-    errors.password = 'Password is required'
-    isValid = false
-  } else if (userForm.password && userForm.password.length < 6) {
-    errors.password = 'Password must be at least 6 characters'
-    isValid = false
+  } else if (!editingUser.value) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(userForm.email)) {
+      errors.email = 'Invalid email format'
+      isValid = false
+    }
   }
 
   return isValid
@@ -321,7 +320,7 @@ function openUserModal(user = null) {
 
   if (user) {
     userForm.name = user.name
-    userForm.username = user.username
+    userForm.email = user.email
     userForm.role = user.role || 'user'
   }
 
@@ -342,7 +341,7 @@ function handleBackdropClick(event) {
 
 // CRUD functions
 function editUser(user) {
-  if (user.username !== 'mRashid') {
+  if (user.email !== 'me@mrashid.me') {
     openUserModal(user)
   }
 }
@@ -363,22 +362,18 @@ async function handleSubmit() {
         name: userForm.name,
         role: userForm.role
       }
-      if (userForm.password) {
-        updates.password = userForm.password
-      }
 
       response = await apiService.request(`/users/${editingUser.value.id}`, {
         method: 'PUT',
         body: JSON.stringify(updates)
       })
     } else {
-      // Create user
+      // Create user (no password needed - will be sent via email)
       response = await apiService.request('/users', {
         method: 'POST',
         body: JSON.stringify({
           name: userForm.name,
-          username: userForm.username,
-          password: userForm.password,
+          email: userForm.email,
           role: userForm.role
         })
       })
@@ -387,6 +382,11 @@ async function handleSubmit() {
     if (response.success) {
       await fetchUsers()
       closeUserModal()
+
+      // Show success message for new user
+      if (!editingUser.value && response.message) {
+        alert(response.message) // You could use a toast notification here
+      }
     } else {
       generalError.value = response.message || 'Failed to save user'
     }

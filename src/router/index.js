@@ -2,10 +2,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 // Lazy load components
+const Login = () => import('@/views/Login.vue')
+const ResetPassword = () => import('@/views/ResetPassword.vue')
+const ChangePassword = () => import('@/views/ChangePassword.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
 const Transactions = () => import('@/views/Transactions.vue')
 const Categories = () => import('@/views/Categories.vue')
-const Login = () => import('@/views/Login.vue')
+const Users = () => import('@/views/Users.vue')
+
 
 const routes = [
     {
@@ -13,6 +17,18 @@ const routes = [
         name: 'Login',
         component: Login,
         meta: { requiresGuest: true }
+    },
+    {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: () => ResetPassword,
+        meta: { requiresGuest: true }
+    },
+    {
+        path: '/change-password',
+        name: 'ChangePassword',
+        component: () => ChangePassword,
+        meta: { requiresAuth: true }
     },
     {
         path: '/',
@@ -35,7 +51,7 @@ const routes = [
     {
         path: '/users',
         name: 'Users',
-        component: () => import('@/views/Users.vue'),
+        component: () => Users,
         meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {

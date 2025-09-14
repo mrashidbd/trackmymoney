@@ -42,21 +42,44 @@
 
     <!-- Transaction Type -->
     <div>
-      <label for="type" class="block text-sm font-medium text-gray-700 mb-1">
-        Transaction Type <span class="text-red-500">*</span>
-      </label>
-      <select
-          id="type"
-          v-model="form.type"
-          required
-          class="input-field"
-          :class="{ 'border-red-500': errors.type }"
-          @change="handleTypeChange"
-      >
-        <option value="">Select Type</option>
-        <option value="income">Income</option>
-        <option value="expense">Expense</option>
-      </select>
+      <fieldset>
+        <legend class="block text-sm font-medium text-gray-700 mb-1">
+          Transaction Type <span class="text-red-500">*</span>
+        </legend>
+
+        <div class="space-y-2">
+          <div class="flex items-center">
+            <input
+                id="type-income"
+                type="radio"
+                value="income"
+                v-model="form.type"
+                @change="handleTypeChange"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                :class="{ 'border-red-500': errors.type }"
+            />
+            <label for="type-income" class="ml-2 block text-sm text-gray-700">
+              Income
+            </label>
+          </div>
+
+          <div class="flex items-center">
+            <input
+                id="type-expense"
+                type="radio"
+                value="expense"
+                v-model="form.type"
+                @change="handleTypeChange"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                :class="{ 'border-red-500': errors.type }"
+            />
+            <label for="type-expense" class="ml-2 block text-sm text-gray-700">
+              Expense
+            </label>
+          </div>
+        </div>
+      </fieldset>
+
       <p v-if="errors.type" class="mt-1 text-sm text-red-600">{{ errors.type }}</p>
     </div>
 

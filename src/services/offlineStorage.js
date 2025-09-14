@@ -9,7 +9,7 @@ class OfflineStorageService {
     initDatabase() {
         // Single clean version without compound indexes
         this.db.version(1).stores({
-            users: 'id, username, name, token, lastSync',
+            users: 'id, email, name, token, lastSync',
             categories: 'id, name, type, isDefault, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt',
             transactions: 'id, amount, date, type, categoryId, description, year, userId, localId, needsSync, deleted, createdAt, updatedAt, serverUpdatedAt',
             syncQueue: '++id, type, action, data, timestamp, retryCount'
@@ -25,7 +25,7 @@ class OfflineStorageService {
     async saveUser(userData) {
         const user = {
             id: userData.user.id,
-            username: userData.user.username,
+            email: userData.user.email,
             name: userData.user.name,
             token: userData.token,
             lastSync: new Date().toISOString()

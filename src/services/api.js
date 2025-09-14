@@ -58,19 +58,40 @@ class ApiService {
     }
 
     // Auth endpoints
-    async login(username, password) {
+    async login(email, password) {
         return this.request('/auth/login', {
             method: 'POST',
             requiresAuth: false,
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ email, password })
         })
     }
 
-    async register(username, password, name) {
-        return this.request('/auth/register', {
+    async changePassword(currentPassword, newPassword) {
+        return this.request('/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword, newPassword })
+        })
+    }
+
+    async forgotPassword(email) {
+        return this.request('/auth/forgot-password', {
             method: 'POST',
             requiresAuth: false,
-            body: JSON.stringify({ username, password, name })
+            body: JSON.stringify({ email })
+        })
+    }
+
+    async verifyResetToken(token) {
+        return this.request(`/auth/verify-reset-token?token=${token}`, {
+            requiresAuth: false
+        })
+    }
+
+    async resetPassword(token, newPassword) {
+        return this.request('/auth/reset-password', {
+            method: 'POST',
+            requiresAuth: false,
+            body: JSON.stringify({ token, newPassword })
         })
     }
 

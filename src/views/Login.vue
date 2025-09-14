@@ -26,28 +26,45 @@
           {{ errorMessage }}
         </div>
 
+        <!-- Success message -->
+        <div
+            v-if="successMessage"
+            class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg"
+        >
+          {{ successMessage }}
+        </div>
+
         <div class="space-y-4">
-          <!-- Username field -->
+          <!-- Email field -->
           <div>
-            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
-              Username
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
             </label>
             <input
-                id="username"
-                v-model="form.username"
-                type="text"
+                id="email"
+                v-model="form.email"
+                type="email"
                 required
                 class="input-field"
-                placeholder="Enter your username"
+                placeholder="Enter your email"
                 :disabled="authStore.isLoading"
             />
           </div>
 
           <!-- Password field -->
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <div class="flex items-center justify-between mb-1">
+              <label for="password" class="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <button
+                  type="button"
+                  @click="showForgotPassword = true"
+                  class="text-sm text-primary-600 hover:text-primary-500"
+              >
+                Forgot password?
+              </button>
+            </div>
             <input
                 id="password"
                 v-model="form.password"
@@ -82,6 +99,79 @@
         </div>
       </form>
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div
+        v-if="showForgotPassword"
+        class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click="handleModalBackdropClick"
+    >
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-md bg-white rounded-lg shadow-lg">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Reset Password</h3>
+          <button
+              @click="closeForgotPasswordModal"
+              class="text-gray-400 hover:text-gray-600"
+          >
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6">
+          <form @submit.prevent="handleForgotPassword" class="space-y-4">
+            <p class="text-sm text-gray-600">
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+
+            <div>
+              <label for="reset-email" class="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                  id="reset-email"
+                  v-model="forgotPasswordEmail"
+                  type="email"
+                  required
+                  class="input-field"
+                  placeholder="Enter your email"
+                  :disabled="isResetting"
+              />
+            </div>
+
+            <div v-if="resetError" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {{ resetError }}
+            </div>
+
+            <div v-if="resetSuccess" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+              {{ resetSuccess }}
+            </div>
+
+            <div class="flex space-x-3">
+              <button
+                  type="submit"
+                  :disabled="isResetting"
+                  :class="[
+                    'btn-primary flex-1',
+                    isResetting ? 'opacity-50 cursor-not-allowed' : ''
+                  ]"
+              >
+                {{ isResetting ? 'Sending...' : 'Send Reset Link' }}
+              </button>
+              <button
+                  type="button"
+                  @click="closeForgotPasswordModal"
+                  class="btn-secondary flex-1"
+                  :disabled="isResetting"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -89,26 +179,75 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import apiService from '@/services/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const form = reactive({
-  username: '',
+  email: '',
   password: ''
 })
 
 const errorMessage = ref('')
+const successMessage = ref('')
+const showForgotPassword = ref(false)
+const forgotPasswordEmail = ref('')
+const isResetting = ref(false)
+const resetError = ref('')
+const resetSuccess = ref('')
 
 const handleSubmit = async () => {
   errorMessage.value = ''
+  successMessage.value = ''
 
-  const result = await authStore.login(form.username, form.password)
+  const result = await authStore.login(form.email, form.password)
 
   if (result.success) {
-    router.push('/')
+    // Check if this is first login (temporary password)
+    if (result.firstLogin) {
+      router.push('/change-password?first=true')
+    } else {
+      router.push('/')
+    }
   } else {
     errorMessage.value = result.message
+  }
+}
+
+const handleForgotPassword = async () => {
+  resetError.value = ''
+  resetSuccess.value = ''
+  isResetting.value = true
+
+  try {
+    const response = await apiService.forgotPassword(forgotPasswordEmail.value)
+
+    if (response.success) {
+      resetSuccess.value = 'If the email exists in our system, you will receive a password reset link.'
+      setTimeout(() => {
+        closeForgotPasswordModal()
+      }, 3000)
+    } else {
+      resetError.value = response.message || 'Failed to send reset link'
+    }
+  } catch (error) {
+    resetError.value = 'An error occurred. Please try again.'
+  } finally {
+    isResetting.value = false
+  }
+}
+
+const closeForgotPasswordModal = () => {
+  showForgotPassword.value = false
+  forgotPasswordEmail.value = ''
+  resetError.value = ''
+  resetSuccess.value = ''
+}
+
+const handleModalBackdropClick = (event) => {
+  if (event.target === event.currentTarget) {
+    closeForgotPasswordModal()
   }
 }
 </script>

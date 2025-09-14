@@ -47,11 +47,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // Login function
-    async function login(username, password) {
+    async function login(email, password) {
         isLoading.value = true
 
         try {
-            const response = await apiService.login(username, password)
+            const response = await apiService.login(email, password)
 
             if (response.success) {
                 const userData = {
@@ -70,35 +70,6 @@ export const useAuthStore = defineStore('auth', () => {
         } catch (error) {
             console.error('Login error:', error)
             return { success: false, message: error.message || 'Login failed. Please try again.' }
-        } finally {
-            isLoading.value = false
-        }
-    }
-
-    // Register function
-    async function register(username, password, name) {
-        isLoading.value = true
-
-        try {
-            const response = await apiService.register(username, password, name)
-
-            if (response.success) {
-                const userData = {
-                    user: response.user,
-                    token: response.token,
-                    loginTime: new Date().toISOString()
-                }
-
-                user.value = response.user
-                localStorage.setItem('trackmymoney_user', JSON.stringify(userData))
-                await saveUserOffline(userData)
-                return { success: true }
-            } else {
-                return { success: false, message: response.message }
-            }
-        } catch (error) {
-            console.error('Registration error:', error)
-            return { success: false, message: error.message || 'Registration failed. Please try again.' }
         } finally {
             isLoading.value = false
         }
@@ -124,7 +95,6 @@ export const useAuthStore = defineStore('auth', () => {
         isSuperAdmin,
         initAuth,
         login,
-        register,
         logout,
         verifyToken
     }
