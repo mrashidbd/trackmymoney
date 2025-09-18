@@ -31,29 +31,48 @@ class ApiService {
         return headers
     }
 
-    // Generic request method
+// Generic request method
     async request(endpoint, options = {}) {
-        const url = `${this.baseURL}${endpoint}`
+        const url = `${this.baseURL}${endpoint}`;
         const config = {
             ...options,
             headers: {
                 ...this.getHeaders(options.requiresAuth !== false),
                 ...options.headers
             }
-        }
+        };
 
         try {
-            const response = await fetch(url, config)
-            const data = await response.json()
+            const response = await fetch(url, config);
 
+            // Handle network errors
             if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`)
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || errorMessage;
+                } catch (parseError) {
+                    // Response is not JSON, use status text
+                    errorMessage = response.statusText || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
 
-            return data
+            const data = await response.json();
+            return data;
         } catch (error) {
-            console.error('API request failed:', error)
-            throw error
+            console.error('API request failed:', error);
+
+            // Handle specific error types
+            if (!navigator.onLine) {
+                throw new Error('No internet connection');
+            }
+
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                throw new Error('Network error - please check your connection');
+            }
+
+            throw error;
         }
     }
 
