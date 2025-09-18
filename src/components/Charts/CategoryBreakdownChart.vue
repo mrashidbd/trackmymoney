@@ -60,7 +60,7 @@
         }"
           ></div>
           <span class="text-gray-700 truncate">
-        {{ item.name }}: ${{ formatCurrency(item.total) }}
+        {{ item.name }}: ৳{{ formatCurrency(item.total) }}
       </span>
         </div>
       </div>
@@ -252,7 +252,7 @@ const createChart = () => {
               const value = context.parsed
               const total = chartData.value.reduce((sum, item) => sum + item.total, 0)
               const percentage = ((value / total) * 100).toFixed(1)
-              return `$${value.toLocaleString('en-US', {
+              return `৳${value.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
               })} (${percentage}%)`

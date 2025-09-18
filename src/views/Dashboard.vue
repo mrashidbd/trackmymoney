@@ -32,7 +32,7 @@
           </div>
           <div class="ml-3">
             <p class="text-sm font-medium text-gray-500">Current Month Income</p>
-            <p class="text-2xl font-bold text-green-600">${{ formatCurrency(currentMonthStats.income) }}</p>
+            <p class="text-2xl font-bold text-green-600">&#2547;&nbsp;{{ formatCurrency(currentMonthStats.income) }}</p>
           </div>
         </div>
       </div>
@@ -48,7 +48,7 @@
           </div>
           <div class="ml-3">
             <p class="text-sm font-medium text-gray-500">Current Month Expenses</p>
-            <p class="text-2xl font-bold text-red-600">${{ formatCurrency(currentMonthStats.expenses) }}</p>
+            <p class="text-2xl font-bold text-red-600">&#2547;&nbsp;{{ formatCurrency(currentMonthStats.expenses) }}</p>
           </div>
         </div>
       </div>
@@ -68,7 +68,7 @@
               'text-2xl font-bold',
               currentMonthStats.balance >= 0 ? 'text-green-600' : 'text-red-600'
             ]">
-              ${{ formatCurrency(currentMonthStats.balance) }}
+              &#2547;&nbsp;{{ formatCurrency(currentMonthStats.balance) }}
             </p>
           </div>
         </div>
@@ -170,7 +170,7 @@
                   'text-sm font-medium',
                   transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                 ]">
-                  {{ transaction.type === 'income' ? '+' : '-' }}${{ formatCurrency(transaction.amount) }}
+                  {{ transaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
                 </p>
               </div>
             </div>

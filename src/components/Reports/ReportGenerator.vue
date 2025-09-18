@@ -320,9 +320,9 @@ const exportToPDF = async () => {
     doc.text('Summary', 20, 55)
 
     const summaryData = [
-      ['Total Income', `$${formatCurrency(reportData.value.totalIncome)}`],
-      ['Total Expenses', `$${formatCurrency(reportData.value.totalExpenses)}`],
-      ['Net Balance', `$${formatCurrency(reportData.value.netBalance)}`],
+      ['Total Income', `Tk. ${formatCurrency(reportData.value.totalIncome)}`],
+      ['Total Expenses', `Tk. ${formatCurrency(reportData.value.totalExpenses)}`],
+      ['Net Balance', `Tk. ${formatCurrency(reportData.value.netBalance)}`],
       ['Total Transactions', reportData.value.transactions.length.toString()]
     ]
 
@@ -344,7 +344,7 @@ const exportToPDF = async () => {
         cat.name,
         cat.type.charAt(0).toUpperCase() + cat.type.slice(1),
         cat.count.toString(),
-        `$${formatCurrency(cat.total)}`
+        `Tk. ${formatCurrency(cat.total)}`
       ])
 
       autoTable(doc, {
@@ -368,7 +368,7 @@ const exportToPDF = async () => {
           format(new Date(t.date), 'MMM dd, yyyy'),
           category ? category.name : 'Unknown',
           t.type.charAt(0).toUpperCase() + t.type.slice(1),
-          `$${formatCurrency(t.amount)}`,
+          `Tk. ${formatCurrency(t.amount)}`,
           t.description || '-'
         ]
       })

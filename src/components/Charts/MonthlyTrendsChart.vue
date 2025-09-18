@@ -124,7 +124,7 @@ const createChart = () => {
           callbacks: {
             label: function(context) {
               const value = context.parsed.y
-              return `${context.dataset.label}: $${value.toLocaleString('en-US', {
+              return `${context.dataset.label}: ৳${value.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
               })}`
@@ -155,7 +155,7 @@ const createChart = () => {
             },
             color: '#6b7280',
             callback: function(value) {
-              return '$' + value.toLocaleString('en-US', {
+              return '৳' + value.toLocaleString('en-US', {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0
               })

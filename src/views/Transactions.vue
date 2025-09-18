@@ -7,7 +7,7 @@
           {{ isViewingOtherUser ? 'User Transactions' : 'Transactions' }}
         </h1>
         <p class="mt-1 text-sm text-gray-500">
-          {{ isViewingOtherUser ? `Viewing transactions for User ID: ${viewingUserId}` : 'Manage your income and expenses' }}
+          {{ isViewingOtherUser ? `Viewing transactions for User ID: {viewingUserId}` : 'Manage your income and expenses' }}
         </p>
       </div>
       <div class="mt-4 sm:mt-0">
@@ -196,7 +196,7 @@
                   <span :class="[
                     transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                   ]">
-                    {{ transaction.type === 'income' ? '+' : '-' }}${{ formatCurrency(transaction.amount) }}
+                    {{ transaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
                   </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
