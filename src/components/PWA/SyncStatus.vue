@@ -135,27 +135,45 @@ onMounted(async () => {
   await checkUnsyncedItems()
   unsyncedInterval = setInterval(checkUnsyncedItems, 60000) // Every 60 seconds
 
-  // Listen for SW updates - Fixed version
+  // Listen for SW updates - Fixed version with better error handling
   if ('serviceWorker' in navigator) {
     try {
       // Use dynamic import to avoid build-time issues
-      const pwaModule = await import('virtual:pwa-register')
-      const { registerSW } = pwaModule
+      const pwaModule = await import('virtual:pwa-register').catch(() => null)
 
-      registerSW({
-        onNeedRefresh: () => {
-          updateAvailable.value = true
-        },
-        onOfflineReady: () => {
-          console.log('App ready to work offline')
-        },
-        onRegisterError: (error) => {
-          console.error('SW registration error:', error)
-        }
-      })
+      if (pwaModule && pwaModule.registerSW) {
+        const { registerSW } = pwaModule
+
+        const updateSWFunction = registerSW({
+          onNeedRefresh: () => {
+            updateAvailable.value = true
+            updateSW = updateSWFunction
+          },
+          onOfflineReady: () => {
+            console.log('App ready to work offline')
+          },
+          onRegisterError: (error) => {
+            console.error('SW registration error:', error)
+          },
+          onRegistered: (registration) => {
+            console.log('SW registered successfully')
+
+            // Check for updates periodically
+            setInterval(() => {
+              registration.update().catch(err => {
+                console.log('SW update check failed:', err)
+              })
+            }, 60000) // Check every minute
+          }
+        })
+      } else {
+        console.log('PWA register module not available')
+      }
     } catch (error) {
       console.log('PWA not available:', error)
     }
+  } else {
+    console.log('Service Workers not supported')
   }
 
   // Listen for background sync messages

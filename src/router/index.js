@@ -21,13 +21,13 @@ const routes = [
     {
         path: '/reset-password',
         name: 'ResetPassword',
-        component: () => ResetPassword,
+        component: ResetPassword,
         meta: { requiresGuest: true }
     },
     {
         path: '/change-password',
         name: 'ChangePassword',
-        component: () => ChangePassword,
+        component: ChangePassword,
         meta: { requiresAuth: true }
     },
     {
@@ -51,7 +51,7 @@ const routes = [
     {
         path: '/users',
         name: 'Users',
-        component: () => Users,
+        component: Users,
         meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
